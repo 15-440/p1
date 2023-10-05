@@ -501,7 +501,9 @@ func (ts *windowTestSystem) runWindowBiggerThanUnackTest() {
 
 	// (1) Client to server.
 	ts.t.Logf("Testing client to server...")
-	ts.setServerWriteDropPercent(100) // Don't let server send acks.
+
+	ts.setClientWriteDropPercent(100) // Don't let server receive the first set of messages
+
 	for connID, cli := range ts.clientMap {
 		// Send the fist 1/4th of the messages
 		go ts.streamToServer(connID, cli, ts.clientSendMsgs[0:numMsgs/4])
@@ -511,7 +513,8 @@ func (ts *windowTestSystem) runWindowBiggerThanUnackTest() {
 	// now we wait till expbackoff goes up so the messages are not being re-sent
 	time.Sleep(2000 * time.Millisecond)
 
-	ts.setServerWriteDropPercent(0) // Let server send back acks
+	ts.setClientWriteDropPercent(0) // Let server receive the messages
+
 	for connID, cli := range ts.clientMap {
 		// send the next 1/4th of the messages
 		go ts.streamToServer(connID, cli, ts.clientSendMsgs[numMsgs/4:2*numMsgs/4])
@@ -522,6 +525,7 @@ func (ts *windowTestSystem) runWindowBiggerThanUnackTest() {
 	ts.setServerWriteDropPercent(100) // Don't let server send acks.
 	for connID, cli := range ts.clientMap {
 		// send the next 1/4th of the messages
+		// Notice that the clients should not have sent the last 1/4th of messages because of MaxUnackedMessage
 		go ts.streamToServer(connID, cli, ts.clientSendMsgs[2*numMsgs/4:])
 	}
 	ts.waitForClients() // Wait for clients to finish writing messages to the server.
@@ -546,7 +550,7 @@ func (ts *windowTestSystem) runWindowBiggerThanUnackTest() {
 
 	// (2) server to client
 	ts.t.Logf("Testing server to client...")
-	ts.setClientWriteDropPercent(100) // Don't let clients send acks.
+	ts.setServerWriteDropPercent(100) // Don't let the client receive the messages
 
 	for connID := range ts.clientMap {
 		go ts.streamToClient(connID, ts.serverSendMsgs[0:numMsgs/4]) // Start streaming messages to each client.
@@ -558,7 +562,7 @@ func (ts *windowTestSystem) runWindowBiggerThanUnackTest() {
 
 	time.Sleep(2000 * time.Millisecond)
 
-	ts.setClientWriteDropPercent(0) // Let client send back acks
+	ts.setServerWriteDropPercent(0) // Let the client receive the messages
 	for connID := range ts.clientMap {
 		go ts.streamToClient(connID, ts.serverSendMsgs[numMsgs/4:2*numMsgs/4]) // Start streaming messages to each client.
 	}
@@ -731,21 +735,21 @@ func TestMaxUnackedMessages3(t *testing.T) {
 func TestMaxUnackedMessages4(t *testing.T) {
 	newWindowTestSystem(t, doOutOfWindowMsgs, 1, 20, &Params{100, 1000, 20, 10, 10}).
 		setDescription("TestMaxUnackedMessages4: 1 client, window and max unacked msgs").
-		setMaxEpochs(10).
+		setMaxEpochs(20).
 		runTest()
 }
 
 func TestMaxUnackedMessages5(t *testing.T) {
 	newWindowTestSystem(t, doOutOfWindowMsgs, 5, 20, &Params{100, 1000, 15, 10, 10}).
 		setDescription("TestMaxUnackedMessages5: 5 clients, window and max unacked msgs").
-		setMaxEpochs(10).
+		setMaxEpochs(20).
 		runTest()
 }
 
 func TestMaxUnackedMessages6(t *testing.T) {
 	newWindowTestSystem(t, doOutOfWindowMsgs, 5, 20, &Params{100, 1000, 20, 10, 10}).
 		setDescription("TestMaxUnackedMessages6: 5 clients, window and max unacked msgs").
-		setMaxEpochs(10).
+		setMaxEpochs(20).
 		runTest()
 }
 
